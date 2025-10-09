@@ -18,7 +18,7 @@ local freethr : thread? = nil;
 local function Run(f,...)
 	local thr = freethr;
 	freethr = nil
-	f(...)
+	xpcall(f,warn,...)
 	freethr = thr
 end
 
@@ -93,4 +93,5 @@ return function(sizeAlloc : number?) : Signal
 	funcs[i]=table.create(sizeAlloc or 1)
 		
 	return s
+
 end
