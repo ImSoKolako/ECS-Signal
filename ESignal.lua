@@ -61,8 +61,7 @@ end
 --Does not register connection, meaning you would not be able to disconnect it, this making it around 3x times faster than regular connect.
 function module.StaticConnect(self : Signal, callback : (...any)->())
 	local funcs = funcs[self[1]]
-	local at = #funcs+1
-	table.insert(funcs[at] :: {()->()},callback)
+	table.insert(funcs :: {()->()},callback)
 end
 
 --Fires all binded functions to signal.
@@ -95,3 +94,4 @@ return function(sizeAlloc : number?) : Signal
 	return s
 
 end
+
