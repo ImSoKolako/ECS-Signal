@@ -11,7 +11,7 @@ export type Signal<T...> = {
 export type Connection = typeof({Disconnect = function(self : Connection) return nil end})
 
 --An ECS basis
-local cons : {{Connection}} = {};
+local connections : {{Connection}} = {};
 local funcs  : {{()->()}}= {};
 
 
@@ -42,7 +42,7 @@ function cons.Disconnect(self)
 	local i = self[1]
 	local at = self[2][1]
 	local funcs = funcs[at]
-	local cons = cons[at]
+	local cons = connections[at]
 	local deletedcon = table.remove(cons) :: {number}
 	local deletedfu = table.remove(funcs)
 	if deletedcon~=self then
@@ -55,10 +55,12 @@ end
 --registers a connection and returns it.
 function module.Connect(self,callback : (...any)->()) : Connection
 	local i = self[1]
+	local funcs = funcs[i]
 	local at = #funcs+1
-	funcs[i][at] = callback
+	funcs[at] = callback
 	local con = setmetatable({at,self},cons)
-	cons[i][#cons+1] = con
+	local cons = connections[i]
+	cons[#cons+1] = con
 	return con :: Connection
 end
 
@@ -91,10 +93,10 @@ end
 --For types you should type them explicitly as example:
 --local SignalObject : ECSSignal.Signal<type> = ECSSignal()
 return function(sizeAlloc : number?) : Signal<...any>
-	local i = #cons+1
+	local i = #connections+1
 	local s = setmetatable({i},module) :: Signal<...any>
 
-	cons[i]=table.create(sizeAlloc or 1)
+	connections[i]=table.create(sizeAlloc or 1)
 	funcs[i]=table.create(sizeAlloc or 1) :: {()->()}
 
 	return s
