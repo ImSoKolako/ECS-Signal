@@ -1,13 +1,18 @@
 --!optimize 2
 --!strict
 local module = {};
---A magic type!
-export type Signal = typeof(module)
+--No more automatized job :sob:
+export type Signal<T...> = {
+	Connect : (Signal<T...>,callback : (T...)->())->Connection;
+	Fire : (Signal<T...>,T...)->();
+	StaticConnect : (Signal<T...>,callback : (T...)->())->();
+	NativeFire : (Signal<T...>,T...)->();
+}
 export type Connection = typeof({Disconnect = function(self : Connection) return nil end})
 
 --An ECS basis
-local cons = {};
-local funcs = {};
+local cons : {{Connection}} = {};
+local funcs  : {{()->()}}= {};
 
 
 module.__index = module;
@@ -15,7 +20,7 @@ module.__index = module;
 
 --A basic thread reusing. Pretty much more than enough for most games (unless you're making something unintendally hard)
 local freethr : thread? = nil;
-local function Run(f,...)
+local function Run(f,... : any)
 	local thr = freethr;
 	freethr = nil
 	xpcall(f,warn,...)
@@ -48,24 +53,23 @@ function cons.Disconnect(self)
 end
 
 --registers a connection and returns it.
-function module.Connect(self : Signal,callback : (...any)->()) : Connection
+function module.Connect(self,callback : (...any)->()) : Connection
 	local i = self[1]
-	local funcs = funcs[i]
 	local at = #funcs+1
-	funcs[at] = callback
+	funcs[i][at] = callback
 	local con = setmetatable({at,self},cons)
-	cons[i][#cons] = con
+	cons[i][#cons+1] = con
 	return con :: Connection
 end
 
 --Does not register connection, meaning you would not be able to disconnect it, this making it around 3x times faster than regular connect.
-function module.StaticConnect(self : Signal, callback : (...any)->())
+function module.StaticConnect(self, callback : (...any)->())
 	local funcs = funcs[self[1]]
-	table.insert(funcs :: {()->()},callback)
+	table.insert(funcs,callback)
 end
 
 --Fires all binded functions to signal.
-function module.Fire(self : Signal,...)
+function module.Fire(self,...:any)
 	local func = funcs[self[1]]
 	for id,callback in func do
 		if not freethr then
@@ -77,21 +81,22 @@ end
 
 --Fires all binded functions to signal.
 --It assumes that no functions linked to signal have a yielding code. And it can grant up to 7x speed boost if used correctly.
-function module.NativeFire(self : Signal,...)
-	local func = funcs[self[1]] :: {(...any)->()}
+function module.NativeFire(self,...)
+	local func = funcs[self[1]]
 	for id,callback in func do
-		callback(...)
+		xpcall(callback,warn,...)
 	end
 end
 
-return function(sizeAlloc : number?) : Signal
+--For types you should type them explicitly as example:
+--local SignalObject : ECSSignal.Signal<type> = ECSSignal()
+return function(sizeAlloc : number?) : Signal<...any>
 	local i = #cons+1
-	local s = setmetatable({i},module) :: Signal
-	
+	local s = setmetatable({i},module) :: Signal<...any>
+
 	cons[i]=table.create(sizeAlloc or 1)
-	funcs[i]=table.create(sizeAlloc or 1)
-		
+	funcs[i]=table.create(sizeAlloc or 1) :: {()->()}
+
 	return s
 
 end
-
